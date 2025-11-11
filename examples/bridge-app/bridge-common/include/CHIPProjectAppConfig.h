@@ -31,5 +31,8 @@
 #define CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT 16
 #define CHIP_CONFIG_USE_ENDPOINT_UNIQUE_ID 1
 
+// Allows app options (ports) to be configured on launch of app
+#define CHIP_DEVICE_ENABLE_PORT_PARAMS 1
+
 // include the CHIPProjectConfig from config/standalone
 #include <CHIPProjectConfig.h>
