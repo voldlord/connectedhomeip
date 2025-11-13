@@ -193,10 +193,10 @@ DataVersion gActionLight1DataVersions[MATTER_ARRAY_SIZE(bridgedLightClusters)];
 // DataVersion gActionLight3DataVersions[MATTER_ARRAY_SIZE(bridgedLightClusters)];
 // DataVersion gActionLight4DataVersions[MATTER_ARRAY_SIZE(bridgedLightClusters)];
 
-DeviceOnOff ActionLight1("Action Light 1", "Room 1");
-DeviceOnOff ActionLight2("Action Light 2", "Room 1");
-DeviceOnOff ActionLight3("Action Light 3", "Room 2");
-DeviceOnOff ActionLight4("Action Light 4", "Room 2");
+DeviceOnOff ActionLight1("Action_Light_1", "Room 1");
+DeviceOnOff ActionLight2("Action_Light_2", "Room 1");
+DeviceOnOff ActionLight3("Action_Light_3", "Room 2");
+DeviceOnOff ActionLight4("Action_Light_4", "Room 2");
 
 // Setup composed device with two temperature sensors and a power source
 ComposedDevice gComposedDevice("Composed Device", "Bedroom");
