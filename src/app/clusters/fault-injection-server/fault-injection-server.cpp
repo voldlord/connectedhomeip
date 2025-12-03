@@ -78,14 +78,45 @@ bool emberAfFaultInjectionClusterFailAtFaultCallback(CommandHandler * commandObj
 
     if (faultInjectionMgr != nullptr)
     {
-        ChipLogProgress(Zcl, "FaultInjection: Configure a fault of type: %u and Id: %" PRIu32 " to be triggered deterministically",
-                        static_cast<uint8_t>(commandData.type), commandData.id);
+        // Check if optional targeting parameters are present
+        bool hasTargetingParams = commandData.targetEndpoint.HasValue() && 
+                                 commandData.targetCluster.HasValue() && 
+                                 commandData.targetId.HasValue();
+
+        if (hasTargetingParams)
+        {
+            ChipLogProgress(Zcl, "FaultInjection: Configure fault type: %u, Id: %" PRIu32 " with targeting: EP=%u, Cluster=0x%" PRIx32 ", Target=0x%" PRIx32,
+                            static_cast<uint8_t>(commandData.type), commandData.id, 
+                            commandData.targetEndpoint.Value(), commandData.targetCluster.Value(), commandData.targetId.Value());
+        }
+        else
+        {
+            ChipLogProgress(Zcl, "FaultInjection: Configure a fault of type: %u and Id: %" PRIu32 " to be triggered deterministically",
+                            static_cast<uint8_t>(commandData.type), commandData.id);
+        }
+
+        if (hasTargetingParams)
+        {
+            int32_t args[3];
+            args[0] = static_cast<int32_t>(commandData.targetEndpoint.Value());
+            args[1] = static_cast<int32_t>(commandData.targetCluster.Value());
+            args[2] = static_cast<int32_t>(commandData.targetId.Value());
+            int32_t storeErr = faultInjectionMgr->StoreArgsAtFault(commandData.id, 3, args);
+            if (storeErr != 0)
+            {
+                ChipLogError(Zcl, "FaultInjection: StoreArgsAtFault failed with error %d", storeErr);
+                returnStatus = Status::InvalidCommand;
+                commandObj->AddStatus(commandPath, returnStatus);
+                return true;
+            }
+        }
+
         int32_t err = faultInjectionMgr->FailAtFault(commandData.id, commandData.numCallsToSkip, commandData.numCallsToFail,
                                                      commandData.takeMutex);
 
         if (err != 0)
         {
-            ChipLogError(Zcl, "FaultInjection: Pass invalid inputs to FailAtFault");
+            ChipLogError(Zcl, "FaultInjection: FailAtFault failed with error %d", err);
             returnStatus = Status::InvalidCommand;
         }
     }

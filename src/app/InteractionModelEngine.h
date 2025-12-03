@@ -340,7 +340,6 @@ public:
 #endif // CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
 #endif // CHIP_CONFIG_PERSIST_SUBSCRIPTIONS
 
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     //
     // Get direct access to the underlying read handler pool
     //
@@ -355,8 +354,7 @@ public:
 
     //
     // Override the maximal capacity of the underlying read handler pool to mimic
-    // out of memory scenarios in unit-tests. You need to SetConfigMaxFabrics to make GetGuaranteedReadRequestsPerFabric
-    // working correctly.
+    // out of memory scenarios or for testing resource limits.
     //
     // If -1 is passed in, no override is instituted and default behavior resumes.
     //
@@ -365,7 +363,7 @@ public:
 
     //
     // Override the maximal capacity of the underlying attribute path pool and event path pool to mimic
-    // out of paths exhausted scenarios in unit-tests.
+    // out of paths exhausted scenarios or for testing resource limits.
     //
     // If -1 is passed in, no override is instituted and default behavior resumes.
     //
@@ -373,12 +371,21 @@ public:
     void SetPathPoolCapacityForSubscriptions(int32_t sz) { mPathPoolCapacityForSubscriptionsOverride = sz; }
 
     //
-    // We won't limit the handler used per fabric on platforms that are using heap for memory pools, so we introduces a flag to
-    // enforce such check based on the configured size. This flag is used for unit tests only, there is another compare time flag
-    // CHIP_CONFIG_IM_FORCE_FABRIC_QUOTA_CHECK for stress tests.
+    // Force per-fabric quota enforcement even on heap-based platforms.
+    // This ensures resource limits are actually enforced for testing purposes.
     //
     void SetForceHandlerQuota(bool forceHandlerQuota) { mForceHandlerQuota = forceHandlerQuota; }
 
+    //
+    // Override the maximal capacity for write handlers and command handlers to test resource limits.
+    //
+    // If -1 is passed in, no override is instituted and default behavior resumes.
+    //
+    void SetWriteHandlerCapacity(int32_t sz) { mWriteHandlerCapacityOverride = sz; }
+    void SetCommandHandlerCapacity(int32_t sz) { mCommandHandlerCapacityOverride = sz; }
+    void SetTimedHandlerCapacity(int32_t sz) { mTimedHandlerCapacityOverride = sz; }
+
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
 #if CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
     //
     // Override the subscription timeout resumption retry interval seconds. The default retry interval will be
@@ -528,52 +535,32 @@ private:
 
     inline size_t GetPathPoolCapacityForReads() const
     {
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
         return (mPathPoolCapacityForReadsOverride == -1) ? CHIP_IM_SERVER_MAX_NUM_PATH_GROUPS_FOR_READS
                                                          : static_cast<size_t>(mPathPoolCapacityForReadsOverride);
-#else
-        return CHIP_IM_SERVER_MAX_NUM_PATH_GROUPS_FOR_READS;
-#endif
     }
 
     inline size_t GetReadHandlerPoolCapacityForReads() const
     {
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
         return (mReadHandlerCapacityForReadsOverride == -1) ? CHIP_IM_MAX_NUM_READS
                                                             : static_cast<size_t>(mReadHandlerCapacityForReadsOverride);
-#else
-        return CHIP_IM_MAX_NUM_READS;
-#endif
     }
 
     inline size_t GetPathPoolCapacityForSubscriptions() const
     {
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
         return (mPathPoolCapacityForSubscriptionsOverride == -1) ? CHIP_IM_SERVER_MAX_NUM_PATH_GROUPS_FOR_SUBSCRIPTIONS
                                                                  : static_cast<size_t>(mPathPoolCapacityForSubscriptionsOverride);
-#else
-        return CHIP_IM_SERVER_MAX_NUM_PATH_GROUPS_FOR_SUBSCRIPTIONS;
-#endif
     }
 
     inline size_t GetReadHandlerPoolCapacityForSubscriptions() const
     {
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
         return (mReadHandlerCapacityForSubscriptionsOverride == -1)
             ? CHIP_IM_MAX_NUM_SUBSCRIPTIONS
             : static_cast<size_t>(mReadHandlerCapacityForSubscriptionsOverride);
-#else
-        return CHIP_IM_MAX_NUM_SUBSCRIPTIONS;
-#endif
     }
 
     inline uint8_t GetConfigMaxFabrics() const
     {
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
         return (mMaxNumFabricsOverride == -1) ? CHIP_CONFIG_MAX_FABRICS : static_cast<uint8_t>(mMaxNumFabricsOverride);
-#else
-        return CHIP_CONFIG_MAX_FABRICS;
-#endif
     }
 
     inline size_t GetGuaranteedReadRequestsPerFabric() const
@@ -691,7 +678,6 @@ private:
 
     ReadHandler::ApplicationCallback * mpReadHandlerApplicationCallback = nullptr;
 
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
     int mReadHandlerCapacityForSubscriptionsOverride = -1;
     int mPathPoolCapacityForSubscriptionsOverride    = -1;
 
@@ -700,14 +686,18 @@ private:
 
     int mMaxNumFabricsOverride = -1;
 
+    // Override capacities for write handlers, command handlers, and timed handlers
+    int mWriteHandlerCapacityOverride   = -1;
+    int mCommandHandlerCapacityOverride = -1;
+    int mTimedHandlerCapacityOverride   = -1;
+
     // We won't limit the handler used per fabric on platforms that are using heap for memory pools, so we introduces a flag to
     // enforce such check based on the configured size. This flag is used for unit tests only, there is another compare time flag
     // CHIP_CONFIG_IM_FORCE_FABRIC_QUOTA_CHECK for stress tests.
     bool mForceHandlerQuota = false;
-#if CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
+#if CONFIG_BUILD_FOR_HOST_UNIT_TEST && CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
     int mSubscriptionResumptionRetrySecondsOverride = -1;
-#endif // CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
-#endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
+#endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST && CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
 
 #if CHIP_CONFIG_PERSIST_SUBSCRIPTIONS
     /**

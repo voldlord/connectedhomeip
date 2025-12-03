@@ -36,7 +36,10 @@ limitations under the License.
       <arg name="Id" type="int32u"/>
       <arg name="NumCallsToSkip" type="int32u"/>
       <arg name="NumCallsToFail" type="int32u"/>
-      <arg name="TakeMutex" type="boolean"/>      
+      <arg name="TakeMutex" type="boolean"/>
+      <arg name="TargetEndpoint" type="endpoint_no" optional="true"/>
+      <arg name="TargetCluster" type="cluster_id" optional="true"/>
+      <arg name="TargetId" type="int32u" optional="true"/>
       <access op="invoke" role="manage"/>
     </command>
     <command source="client" code="0x01" name="FailRandomlyAtFault" optional="false">

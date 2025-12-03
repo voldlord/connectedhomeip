@@ -34,6 +34,7 @@
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <lib/core/CHIPError.h>
+#include <lib/support/CHIPFaultInjection.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/ZclString.h>
 #include <platform/CommissionableDataProvider.h>
@@ -266,6 +267,20 @@ Action action3(0x1003, "Turn Off Room 1", Actions::ActionTypeEnum::kAutomation, 
 // DataVersion gComposedDeviceDataVersions[MATTER_ARRAY_SIZE(bridgedComposedDeviceClusters)];
 // DataVersion gComposedTempSensor1DataVersions[MATTER_ARRAY_SIZE(bridgedTempSensorClusters)];
 // DataVersion gComposedTempSensor2DataVersions[MATTER_ARRAY_SIZE(bridgedTempSensorClusters)];
+
+// ---------------------------------------------------------------------------
+//
+// DYNAMIC LIGHT MANAGEMENT
+// Structure to track dynamically created light endpoints
+
+struct DynamicLight
+{
+    DeviceOnOff * device;
+    DataVersion * dataVersions;
+};
+
+std::vector<DynamicLight> gDynamicLights;
+uint32_t gDynamicLightCounter = 0;
 
 } // namespace
 
@@ -711,6 +726,36 @@ Protocols::InteractionModel::Status emberAfExternalAttributeReadCallback(Endpoin
 
     Protocols::InteractionModel::Status ret = Protocols::InteractionModel::Status::Failure;
 
+#if CHIP_WITH_NLFAULTINJECTION
+    // Fault injection for bridge external attribute reads
+    CHIP_FAULT_INJECT_WITH_ARGS(
+        chip::FaultInjection::kFault_AttributeRead,
+        {
+            nl::FaultInjection::Manager & mgr = chip::FaultInjection::GetManager();
+            const nl::FaultInjection::Record * record = &mgr.GetFaultRecords()[chip::FaultInjection::kFault_AttributeRead];
+            
+            if (record->mNumArguments >= 3)
+            {
+                uint16_t targetEndpoint = static_cast<uint16_t>(record->mArguments[0]);
+                uint32_t targetCluster = static_cast<uint32_t>(record->mArguments[1]);
+                uint32_t targetAttribute = static_cast<uint32_t>(record->mArguments[2]);
+                
+                // Match with wildcards (0xFFFF/0xFFFFFFFF = any)
+                if ((targetEndpoint == 0xFFFF || endpoint == targetEndpoint) &&
+                    (targetCluster == 0xFFFFFFFF || clusterId == targetCluster) &&
+                    (targetAttribute == 0xFFFFFFFF || attributeMetadata->attributeId == targetAttribute))
+                {
+                    ChipLogError(DeviceLayer, "Fault injected: Bridge external read failed for EP:%u Cluster:0x%lx Attr:0x%lx",
+                                endpoint, static_cast<unsigned long>(clusterId), 
+                                static_cast<unsigned long>(attributeMetadata->attributeId));
+                    return Protocols::InteractionModel::Status::Failure;
+                }
+            }
+        },
+        {}
+    );
+#endif // CHIP_WITH_NLFAULTINJECTION
+
     if ((endpointIndex < CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT) && (gDevices[endpointIndex] != nullptr))
     {
         Device * dev = gDevices[endpointIndex];
@@ -808,6 +853,36 @@ Protocols::InteractionModel::Status emberAfExternalAttributeWriteCallback(Endpoi
 
     // ChipLogProgress(DeviceLayer, "emberAfExternalAttributeWriteCallback: ep=%d", endpoint);
 
+#if CHIP_WITH_NLFAULTINJECTION
+    // Fault injection for bridge external attribute writes
+    CHIP_FAULT_INJECT_WITH_ARGS(
+        chip::FaultInjection::kFault_AttributeWrite,
+        {
+            nl::FaultInjection::Manager & mgr = chip::FaultInjection::GetManager();
+            const nl::FaultInjection::Record * record = &mgr.GetFaultRecords()[chip::FaultInjection::kFault_AttributeWrite];
+            
+            if (record->mNumArguments >= 3)
+            {
+                uint16_t targetEndpoint = static_cast<uint16_t>(record->mArguments[0]);
+                uint32_t targetCluster = static_cast<uint32_t>(record->mArguments[1]);
+                uint32_t targetAttribute = static_cast<uint32_t>(record->mArguments[2]);
+                
+                // Match with wildcards (0xFFFF/0xFFFFFFFF = any)
+                if ((targetEndpoint == 0xFFFF || endpoint == targetEndpoint) &&
+                    (targetCluster == 0xFFFFFFFF || clusterId == targetCluster) &&
+                    (targetAttribute == 0xFFFFFFFF || attributeMetadata->attributeId == targetAttribute))
+                {
+                    ChipLogError(DeviceLayer, "Fault injected: Bridge external write failed for EP:%u Cluster:0x%lx Attr:0x%lx",
+                                endpoint, static_cast<unsigned long>(clusterId), 
+                                static_cast<unsigned long>(attributeMetadata->attributeId));
+                    return Protocols::InteractionModel::Status::Failure;
+                }
+            }
+        },
+        {}
+    );
+#endif // CHIP_WITH_NLFAULTINJECTION
+
     if (endpointIndex < CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT)
     {
         Device * dev = gDevices[endpointIndex];
@@ -882,6 +957,100 @@ bool kbhit()
 }
 
 const int16_t oneDegree = 100;
+
+// Worker function to add a dynamic light endpoint (runs on Matter event loop)
+void AddDynamicLightWorker(intptr_t context)
+{
+    // Allocate device and data versions
+    char lightName[32];
+    snprintf(lightName, sizeof(lightName), "Dynamic Light %u", ++gDynamicLightCounter);
+    
+    auto * device = Platform::New<DeviceOnOff>(lightName, "Dynamic");
+    auto * dataVersions = new DataVersion[MATTER_ARRAY_SIZE(bridgedLightClusters)];
+    
+    // Initialize data versions to 0
+    memset(dataVersions, 0, sizeof(DataVersion) * MATTER_ARRAY_SIZE(bridgedLightClusters));
+    
+    // Set device properties
+    device->SetReachable(true);
+    device->SetChangeCallback(&HandleDeviceOnOffStatusChanged);
+    
+    // Add endpoint (already on the correct thread with proper locking)
+#if !CHIP_CONFIG_USE_ENDPOINT_UNIQUE_ID
+    int result = AddDeviceEndpoint(device, &bridgedLightEndpoint, 
+                                   Span<const EmberAfDeviceType>(gBridgedOnOffDeviceTypes),
+                                   Span<DataVersion>(dataVersions, MATTER_ARRAY_SIZE(bridgedLightClusters)), 
+                                   1);
+#else
+    int result = AddDeviceEndpoint(device, &bridgedLightEndpoint, 
+                                   Span<const EmberAfDeviceType>(gBridgedOnOffDeviceTypes),
+                                   Span<DataVersion>(dataVersions, MATTER_ARRAY_SIZE(bridgedLightClusters)), 
+                                   ""_span, 1);
+#endif
+    
+    if (result >= 0)
+    {
+        // Track it
+        gDynamicLights.push_back({device, dataVersions});
+        ChipLogProgress(DeviceLayer, "Successfully added dynamic light '%s' (total: %zu)", 
+                       lightName, gDynamicLights.size());
+    }
+    else
+    {
+        ChipLogError(DeviceLayer, "Failed to add dynamic light '%s'", lightName);
+        Platform::Delete(device);
+        delete[] dataVersions;
+    }
+}
+
+// Function to add a dynamic light endpoint (schedules work on Matter event loop)
+void AddDynamicLight()
+{
+    ChipLogProgress(DeviceLayer, "Scheduling dynamic light addition...");
+    PlatformMgr().ScheduleWork(AddDynamicLightWorker, 0);
+}
+
+// Worker function to remove the most recently added dynamic light (runs on Matter event loop)
+void RemoveDynamicLightWorker(intptr_t context)
+{
+    if (gDynamicLights.empty())
+    {
+        ChipLogProgress(DeviceLayer, "No dynamic lights to remove");
+        return;
+    }
+    
+    // Get the most recent light (LIFO)
+    DynamicLight light = gDynamicLights.back();
+    
+    // Remove endpoint (already on the correct thread with proper locking)
+    int result = RemoveDeviceEndpoint(light.device);
+    
+    if (result >= 0)
+    {
+        ChipLogProgress(DeviceLayer, "Removing dynamic light '%s'", light.device->GetName());
+        
+        // Clean up memory
+        Platform::Delete(light.device);
+        delete[] light.dataVersions;
+        
+        // Remove from tracking
+        gDynamicLights.pop_back();
+        
+        ChipLogProgress(DeviceLayer, "Successfully removed dynamic light (remaining: %zu)", 
+                       gDynamicLights.size());
+    }
+    else
+    {
+        ChipLogError(DeviceLayer, "Failed to remove dynamic light '%s'", light.device->GetName());
+    }
+}
+
+// Function to remove a dynamic light endpoint (schedules work on Matter event loop)
+void RemoveDynamicLight()
+{
+    ChipLogProgress(DeviceLayer, "Scheduling dynamic light removal...");
+    PlatformMgr().ScheduleWork(RemoveDynamicLightWorker, 0);
+}
 
 void * bridge_polling_thread(void * context)
 {
@@ -1013,6 +1182,18 @@ void * bridge_polling_thread(void * context)
                 // TC-BRBINFO-3.2 step 3
                 uint32_t configVersion = Light1.GetConfigurationVersion() + 1;
                 Light1.SetConfigurationVersion(configVersion);
+            }
+
+            // Commands for dynamic endpoint management
+            if (ch == 'a')
+            {
+                // Add a dynamic light endpoint
+                AddDynamicLight();
+            }
+            if (ch == 'd')
+            {
+                // Remove the most recently added dynamic light endpoint
+                RemoveDynamicLight();
             }
             continue;
         }

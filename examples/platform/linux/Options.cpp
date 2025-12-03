@@ -134,6 +134,16 @@ enum
     kDeviceOption_WiFi_PAF,
 #endif
     kDeviceOption_DacProvider,
+    kDeviceOption_MaxReadHandlers,
+    kDeviceOption_MaxSubscriptionHandlers,
+    kDeviceOption_MaxReadPaths,
+    kDeviceOption_MaxSubscriptionPaths,
+    kDeviceOption_MaxWriteHandlers,
+    kDeviceOption_MaxCommandHandlers,
+    kDeviceOption_MaxTimedHandlers,
+    kDeviceOption_MaxExchangeContexts,
+    kDeviceOption_MaxFabrics,
+    kDeviceOption_ForceHandlerQuota,
 #if CHIP_ATTESTATION_TRUSTY_OS
     kDeviceOption_TrustyDacProvider,
 #endif
@@ -237,6 +247,16 @@ OptionDef sDeviceOptionDefs[] = {
     { "faults", kArgumentRequired, kDeviceOption_FaultInjection },
 #endif
     { "dac_provider", kArgumentRequired, kDeviceOption_DacProvider },
+    { "max-read-handlers", kArgumentRequired, kDeviceOption_MaxReadHandlers },
+    { "max-subscription-handlers", kArgumentRequired, kDeviceOption_MaxSubscriptionHandlers },
+    { "max-read-paths", kArgumentRequired, kDeviceOption_MaxReadPaths },
+    { "max-subscription-paths", kArgumentRequired, kDeviceOption_MaxSubscriptionPaths },
+    { "max-write-handlers", kArgumentRequired, kDeviceOption_MaxWriteHandlers },
+    { "max-command-handlers", kArgumentRequired, kDeviceOption_MaxCommandHandlers },
+    { "max-timed-handlers", kArgumentRequired, kDeviceOption_MaxTimedHandlers },
+    { "max-exchange-contexts", kArgumentRequired, kDeviceOption_MaxExchangeContexts },
+    { "max-fabrics", kArgumentRequired, kDeviceOption_MaxFabrics },
+    { "force-handler-quota", kNoArgument, kDeviceOption_ForceHandlerQuota },
 #if CHIP_ATTESTATION_TRUSTY_OS
     { "dac_provider_trusty", kNoArgument, kDeviceOption_TrustyDacProvider },
 #endif
@@ -443,6 +463,36 @@ const char * sDeviceOptionHelp =
 #endif
     "  --dac_provider <filepath>\n"
     "       A json file with data used by the example dac provider to validate device attestation procedure.\n"
+    "\n"
+    "  --max-read-handlers <n>\n"
+    "       Set maximum concurrent read handlers (for testing resource limits).\n"
+    "\n"
+    "  --max-subscription-handlers <n>\n"
+    "       Set maximum concurrent subscription handlers (for testing resource limits).\n"
+    "\n"
+    "  --max-read-paths <n>\n"
+    "       Set maximum attribute/event paths for reads (for testing resource limits).\n"
+    "\n"
+    "  --max-subscription-paths <n>\n"
+    "       Set maximum attribute/event paths for subscriptions (for testing resource limits).\n"
+    "\n"
+    "  --max-write-handlers <n>\n"
+    "       Set maximum concurrent write handlers (for testing resource limits).\n"
+    "\n"
+    "  --max-command-handlers <n>\n"
+    "       Set maximum concurrent command handlers (for testing resource limits).\n"
+    "\n"
+    "  --max-timed-handlers <n>\n"
+    "       Set maximum concurrent timed interaction handlers (for testing resource limits).\n"
+    "\n"
+    "  --max-exchange-contexts <n>\n"
+    "       Set maximum concurrent exchange contexts (for testing resource limits).\n"
+    "\n"
+    "  --max-fabrics <n>\n"
+    "       Override fabric count for quota calculations (for testing resource limits).\n"
+    "\n"
+    "  --force-handler-quota\n"
+    "       Force per-fabric quota enforcement even on heap platforms (recommended for testing).\n"
 #if CHIP_ATTESTATION_TRUSTY_OS
     "  --dac_provider_trusty\n"
     "       Invoke Trusty OS to get device attestation from secure storage.\n"
@@ -873,6 +923,44 @@ bool HandleOption(const char * aProgram, OptionSet * aOptions, int aIdentifier, 
         LinuxDeviceOptions::GetInstance().dacProvider = &testDacProvider;
         break;
     }
+    case kDeviceOption_MaxReadHandlers:
+        LinuxDeviceOptions::GetInstance().maxReadHandlers = static_cast<int32_t>(atoi(aValue));
+        // Automatically enable forceHandlerQuota when setting read/subscription limits
+        LinuxDeviceOptions::GetInstance().forceHandlerQuota = true;
+        break;
+    case kDeviceOption_MaxSubscriptionHandlers:
+        LinuxDeviceOptions::GetInstance().maxSubscriptionHandlers = static_cast<int32_t>(atoi(aValue));
+        // Automatically enable forceHandlerQuota when setting read/subscription limits
+        LinuxDeviceOptions::GetInstance().forceHandlerQuota = true;
+        break;
+    case kDeviceOption_MaxReadPaths:
+        LinuxDeviceOptions::GetInstance().maxReadPaths = static_cast<int32_t>(atoi(aValue));
+        // Automatically enable forceHandlerQuota when setting read/subscription limits
+        LinuxDeviceOptions::GetInstance().forceHandlerQuota = true;
+        break;
+    case kDeviceOption_MaxSubscriptionPaths:
+        LinuxDeviceOptions::GetInstance().maxSubscriptionPaths = static_cast<int32_t>(atoi(aValue));
+        // Automatically enable forceHandlerQuota when setting read/subscription limits
+        LinuxDeviceOptions::GetInstance().forceHandlerQuota = true;
+        break;
+    case kDeviceOption_MaxWriteHandlers:
+        LinuxDeviceOptions::GetInstance().maxWriteHandlers = static_cast<int32_t>(atoi(aValue));
+        break;
+    case kDeviceOption_MaxCommandHandlers:
+        LinuxDeviceOptions::GetInstance().maxCommandHandlers = static_cast<int32_t>(atoi(aValue));
+        break;
+    case kDeviceOption_MaxTimedHandlers:
+        LinuxDeviceOptions::GetInstance().maxTimedHandlers = static_cast<int32_t>(atoi(aValue));
+        break;
+    case kDeviceOption_MaxExchangeContexts:
+        LinuxDeviceOptions::GetInstance().maxExchangeContexts = static_cast<int32_t>(atoi(aValue));
+        break;
+    case kDeviceOption_MaxFabrics:
+        LinuxDeviceOptions::GetInstance().maxFabrics = static_cast<int32_t>(atoi(aValue));
+        break;
+    case kDeviceOption_ForceHandlerQuota:
+        LinuxDeviceOptions::GetInstance().forceHandlerQuota = true;
+        break;
 #if CHIP_ATTESTATION_TRUSTY_OS
     case kDeviceOption_TrustyDacProvider: {
         LinuxDeviceOptions::GetInstance().dacProvider = &chip::Credentials::Trusty::TrustyDACProvider::GetTrustyDACProvider();

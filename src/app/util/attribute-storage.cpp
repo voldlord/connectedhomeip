@@ -32,6 +32,7 @@
 #include <app/util/endpoint-config-api.h>
 #include <app/util/generic-callbacks.h>
 #include <lib/core/CHIPConfig.h>
+#include <lib/support/CHIPFaultInjection.h>
 #include <lib/core/CHIPError.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/logging/CHIPLogging.h>
@@ -678,35 +679,107 @@ Status emAfReadOrWriteAttribute(const EmberAfAttributeSearchRecord * attRecord, 
 
                             {
                                 uint8_t * attributeLocation = attributeData + attributeOffsetIndex;
-                                uint8_t *src, *dst;
-                                if (write)
-                                {
-                                    src = buffer;
-                                    dst = attributeLocation;
-                                    if (!emberAfAttributeWriteAccessCallback(attRecord->endpoint, attRecord->clusterId,
-                                                                             am->attributeId))
-                                    {
-                                        return Status::UnsupportedAccess;
-                                    }
-                                }
-                                else
-                                {
-                                    if (buffer == nullptr)
-                                    {
-                                        return Status::Success;
-                                    }
+                uint8_t *src, *dst;
+                if (write)
+                {
+                    src = buffer;
+                    dst = attributeLocation;
+                    if (!emberAfAttributeWriteAccessCallback(attRecord->endpoint, attRecord->clusterId,
+                                                             am->attributeId))
+                    {
+                        return Status::UnsupportedAccess;
+                    }
 
-                                    src = attributeLocation;
-                                    dst = buffer;
-                                    if (!emberAfAttributeReadAccessCallback(attRecord->endpoint, attRecord->clusterId,
-                                                                            am->attributeId))
-                                    {
-                                        return Status::UnsupportedAccess;
-                                    }
-                                }
+#if CHIP_WITH_NLFAULTINJECTION
+                    // Check if this attribute matches the fault injection target BEFORE decrementing counters
+                    bool shouldInjectFault = false;
+                    {
+                        nl::FaultInjection::Manager & mgr = chip::FaultInjection::GetManager();
+                        const nl::FaultInjection::Record * record = &mgr.GetFaultRecords()[chip::FaultInjection::kFault_AttributeWrite];
+                        
+                        if (record->mNumArguments >= 3)
+                        {
+                            uint16_t targetEndpoint = static_cast<uint16_t>(record->mArguments[0]);
+                            uint32_t targetCluster = static_cast<uint32_t>(record->mArguments[1]);
+                            uint32_t targetAttribute = static_cast<uint32_t>(record->mArguments[2]);
+                            
+                            // Match with wildcards (0xFFFF/0xFFFFFFFF = any)
+                            if ((targetEndpoint == 0xFFFF || attRecord->endpoint == targetEndpoint) &&
+                                (targetCluster == 0xFFFFFFFF || attRecord->clusterId == targetCluster) &&
+                                (targetAttribute == 0xFFFFFFFF || am->attributeId == targetAttribute))
+                            {
+                                shouldInjectFault = true;
+                            }
+                        }
+                    }
+                    
+                    // Only inject fault if target matches (this will decrement counters only for matching attributes)
+                    if (shouldInjectFault)
+                    {
+                        CHIP_FAULT_INJECT(chip::FaultInjection::kFault_AttributeWrite,
+                        {
+                            ChipLogError(DataManagement, "Fault injected: Write failed for EP:%u Cluster:0x%lx Attr:0x%lx",
+                                        attRecord->endpoint, static_cast<unsigned long>(attRecord->clusterId), 
+                                        static_cast<unsigned long>(am->attributeId));
+                            return Status::Failure;
+                        });
+                    }
+#endif // CHIP_WITH_NLFAULTINJECTION
+                }
+                else
+                {
+                    if (buffer == nullptr)
+                    {
+                        return Status::Success;
+                    }
 
-                                // Is the attribute externally stored?
-                                if (am->mask & MATTER_ATTRIBUTE_FLAG_EXTERNAL_STORAGE)
+                    src = attributeLocation;
+                    dst = buffer;
+                    if (!emberAfAttributeReadAccessCallback(attRecord->endpoint, attRecord->clusterId,
+                                                            am->attributeId))
+                    {
+                        return Status::UnsupportedAccess;
+                    }
+
+#if CHIP_WITH_NLFAULTINJECTION
+                    // Check if this attribute matches the fault injection target BEFORE decrementing counters
+                    bool shouldInjectFault = false;
+                    {
+                        nl::FaultInjection::Manager & mgr = chip::FaultInjection::GetManager();
+                        const nl::FaultInjection::Record * record = &mgr.GetFaultRecords()[chip::FaultInjection::kFault_AttributeRead];
+                        
+                        if (record->mNumArguments >= 3)
+                        {
+                            uint16_t targetEndpoint = static_cast<uint16_t>(record->mArguments[0]);
+                            uint32_t targetCluster = static_cast<uint32_t>(record->mArguments[1]);
+                            uint32_t targetAttribute = static_cast<uint32_t>(record->mArguments[2]);
+                            
+                            // Match with wildcards (0xFFFF/0xFFFFFFFF = any)
+                            if ((targetEndpoint == 0xFFFF || attRecord->endpoint == targetEndpoint) &&
+                                (targetCluster == 0xFFFFFFFF || attRecord->clusterId == targetCluster) &&
+                                (targetAttribute == 0xFFFFFFFF || am->attributeId == targetAttribute))
+                            {
+                                shouldInjectFault = true;
+                            }
+                        }
+                    }
+                    
+                    // Only inject fault if target matches (this will decrement counters only for matching attributes)
+                    if (shouldInjectFault)
+                    {
+                        CHIP_FAULT_INJECT(chip::FaultInjection::kFault_AttributeRead,
+                        {
+                            ChipLogError(DataManagement, "Fault injected: Read failed for EP:%u Cluster:0x%lx Attr:0x%lx",
+                                        attRecord->endpoint, static_cast<unsigned long>(attRecord->clusterId), 
+                                        static_cast<unsigned long>(am->attributeId));
+                            return Status::Failure;
+                        });
+                    }
+#endif // CHIP_WITH_NLFAULTINJECTION
+                }
+
+                // Is the attribute externally stored?
+                if (am->mask & MATTER_ATTRIBUTE_FLAG_EXTERNAL_STORAGE)
                                 {
                                     if (write)
                                     {

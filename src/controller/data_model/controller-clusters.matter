@@ -12019,6 +12019,9 @@ internal cluster FaultInjection = 4294048774 {
     int32u numCallsToSkip = 2;
     int32u numCallsToFail = 3;
     boolean takeMutex = 4;
+    optional endpoint_no targetEndpoint = 5;
+    optional cluster_id targetCluster = 6;
+    optional int32u targetId = 7;
   }
 
   request struct FailRandomlyAtFaultRequest {

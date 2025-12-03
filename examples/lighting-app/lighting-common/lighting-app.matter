@@ -2825,7 +2825,7 @@ endpoint 0 {
     callback attribute clusterRevision;
   }
 }
-endpoint 1 {
+endpoint 100 {
   device type ma_colortemperaturelight = 268, version 4;
 
 

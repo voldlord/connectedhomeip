@@ -32428,6 +32428,15 @@ public class ClusterInfoMapping {
 
     CommandParameterInfo faultInjectionfailAtFaulttakeMutexCommandParameterInfo = new CommandParameterInfo("takeMutex", Boolean.class, Boolean.class);
     faultInjectionfailAtFaultCommandParams.put("takeMutex",faultInjectionfailAtFaulttakeMutexCommandParameterInfo);
+
+    CommandParameterInfo faultInjectionfailAtFaulttargetEndpointCommandParameterInfo = new CommandParameterInfo("targetEndpoint", Optional.class, Integer.class);
+    faultInjectionfailAtFaultCommandParams.put("targetEndpoint",faultInjectionfailAtFaulttargetEndpointCommandParameterInfo);
+
+    CommandParameterInfo faultInjectionfailAtFaulttargetClusterCommandParameterInfo = new CommandParameterInfo("targetCluster", Optional.class, Long.class);
+    faultInjectionfailAtFaultCommandParams.put("targetCluster",faultInjectionfailAtFaulttargetClusterCommandParameterInfo);
+
+    CommandParameterInfo faultInjectionfailAtFaulttargetIdCommandParameterInfo = new CommandParameterInfo("targetId", Optional.class, Long.class);
+    faultInjectionfailAtFaultCommandParams.put("targetId",faultInjectionfailAtFaulttargetIdCommandParameterInfo);
     InteractionInfo faultInjectionfailAtFaultInteractionInfo = new InteractionInfo(
       (cluster, callback, commandArguments) -> {
         ((ChipClusters.FaultInjectionCluster) cluster)
@@ -32442,6 +32451,12 @@ public class ClusterInfoMapping {
         commandArguments.get("numCallsToFail")
         , (Boolean)
         commandArguments.get("takeMutex")
+        , (Optional<Integer>)
+        commandArguments.get("targetEndpoint")
+        , (Optional<Long>)
+        commandArguments.get("targetCluster")
+        , (Optional<Long>)
+        commandArguments.get("targetId")
         );
       },
       () -> new DelegatedDefaultClusterCallback(),

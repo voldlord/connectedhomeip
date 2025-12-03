@@ -15602,6 +15602,9 @@ class ChipClusters:
                     "numCallsToSkip": "int",
                     "numCallsToFail": "int",
                     "takeMutex": "bool",
+                    "targetEndpoint": "int",
+                    "targetCluster": "int",
+                    "targetId": "int",
                 },
             },
             0x00000001: {

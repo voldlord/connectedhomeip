@@ -115,6 +115,16 @@ ExchangeContext * ExchangeManager::NewContext(const SessionHandle & session, Exc
         // Disallow creating exchange on an inactive session
         return nullptr;
     }
+
+    // Check if we've hit the override limit for exchange contexts
+    if (mExchangeContextCapacityOverride != -1 &&
+        mContextPool.Allocated() >= static_cast<size_t>(mExchangeContextCapacityOverride))
+    {
+        ChipLogProgress(ExchangeManager, "no resource for exchange context (override limit: %d, active: %u)",
+                        mExchangeContextCapacityOverride, static_cast<uint32_t>(mContextPool.Allocated()));
+        return nullptr;
+    }
+
     return mContextPool.CreateObject(this, mNextExchangeId++, session, isInitiator, delegate);
 }
 
@@ -360,6 +370,20 @@ void ExchangeManager::OnMessageReceived(const PacketHeader & packetHeader, const
             return;
         }
 
+        // Check if we've hit the override limit for exchange contexts
+        if (mExchangeContextCapacityOverride != -1 &&
+            mContextPool.Allocated() >= static_cast<size_t>(mExchangeContextCapacityOverride))
+        {
+            if (delegate != nullptr)
+            {
+                matchingUMH->Handler->OnExchangeCreationFailed(delegate);
+            }
+            
+            ChipLogProgress(ExchangeManager, "no resource for exchange context (override limit: %d, active: %u)",
+                        mExchangeContextCapacityOverride, static_cast<uint32_t>(mContextPool.Allocated()));
+            return;
+        }
+
         ExchangeContext * ec = mContextPool.CreateObject(this, payloadHeader.GetExchangeID(), session, false, delegate);
 
         if (ec == nullptr)
@@ -408,6 +432,15 @@ void ExchangeManager::SendStandaloneAckIfNeeded(const PacketHeader & packetHeade
     // the StandaloneAck.
     if (!session->AllowsMRP() || !payloadHeader.NeedsAck())
         return;
+
+    // Check if we've hit the override limit for exchange contexts
+    if (mExchangeContextCapacityOverride != -1 &&
+        mContextPool.Allocated() >= static_cast<size_t>(mExchangeContextCapacityOverride))
+    {
+        ChipLogProgress(ExchangeManager, "no resource for exchange context (override limit: %d, active: %u) - cannot send standalone ack",
+                        mExchangeContextCapacityOverride, static_cast<uint32_t>(mContextPool.Allocated()));
+        return;
+    }
 
     // If rcvd msg is from initiator then this exchange is created as not Initiator.
     // If rcvd msg is not from initiator then this exchange is created as Initiator.

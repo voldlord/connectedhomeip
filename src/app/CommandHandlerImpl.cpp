@@ -26,6 +26,7 @@
 #include <app/util/MatterCallbacks.h>
 #include <credentials/GroupDataProvider.h>
 #include <lib/core/CHIPConfig.h>
+#include <lib/support/CHIPFaultInjection.h>
 #include <lib/core/TLVData.h>
 #include <lib/core/TLVUtilities.h>
 #include <lib/support/IntrusiveList.h>
@@ -452,6 +453,43 @@ Status CommandHandlerImpl::ProcessCommandDataIB(CommandDataIB::Parser & aCommand
     {
         ChipLogDetail(DataManagement, "Received command for Endpoint=%u Cluster=" ChipLogFormatMEI " Command=" ChipLogFormatMEI,
                       concretePath.mEndpointId, ChipLogValueMEI(concretePath.mClusterId), ChipLogValueMEI(concretePath.mCommandId));
+
+#if CHIP_WITH_NLFAULTINJECTION
+        // Check if this command matches the fault injection target BEFORE decrementing counters
+        bool shouldInjectFault = false;
+        {
+            nl::FaultInjection::Manager & mgr = chip::FaultInjection::GetManager();
+            const nl::FaultInjection::Record * record = &mgr.GetFaultRecords()[chip::FaultInjection::kFault_CommandInvoke];
+            
+            if (record->mNumArguments >= 3)
+            {
+                uint16_t targetEndpoint = static_cast<uint16_t>(record->mArguments[0]);
+                uint32_t targetCluster = static_cast<uint32_t>(record->mArguments[1]);
+                uint32_t targetCommand = static_cast<uint32_t>(record->mArguments[2]);
+                
+                // Match with wildcards (0xFFFF/0xFFFFFFFF = any)
+                if ((targetEndpoint == 0xFFFF || concretePath.mEndpointId == targetEndpoint) &&
+                    (targetCluster == 0xFFFFFFFF || concretePath.mClusterId == targetCluster) &&
+                    (targetCommand == 0xFFFFFFFF || concretePath.mCommandId == targetCommand))
+                {
+                    shouldInjectFault = true;
+                }
+            }
+        }
+        
+        // Only inject fault if target matches (this will decrement counters only for matching commands)
+        if (shouldInjectFault)
+        {
+            CHIP_FAULT_INJECT(chip::FaultInjection::kFault_CommandInvoke,
+            {
+                ChipLogError(DataManagement, "Fault injected: Command failed for EP:%u Cluster:0x%lx Cmd:0x%lx",
+                            concretePath.mEndpointId, static_cast<unsigned long>(concretePath.mClusterId), 
+                            static_cast<unsigned long>(concretePath.mCommandId));
+                err = CHIP_ERROR_INTERNAL;
+            });
+        }
+#endif // CHIP_WITH_NLFAULTINJECTION
+
         SuccessOrExit(err = DataModelCallbacks::GetInstance()->PreCommandReceived(concretePath, GetSubjectDescriptor()));
         mpCallback->DispatchCommand(*this, concretePath, commandDataReader);
         DataModelCallbacks::GetInstance()->PostCommandReceived(concretePath, GetSubjectDescriptor());

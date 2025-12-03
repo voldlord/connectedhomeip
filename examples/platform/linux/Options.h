@@ -97,6 +97,17 @@ struct LinuxDeviceOptions
     int32_t subscriptionCapacity                   = CHIP_IM_MAX_NUM_SUBSCRIPTIONS;
     int32_t subscriptionResumptionRetryIntervalSec = -1;
 #endif
+    // Resource limit overrides for testing (-1 means use system default)
+    int32_t maxReadHandlers         = -1;
+    int32_t maxSubscriptionHandlers = -1;
+    int32_t maxReadPaths            = -1;
+    int32_t maxSubscriptionPaths    = -1;
+    int32_t maxWriteHandlers        = -1;
+    int32_t maxCommandHandlers      = -1;
+    int32_t maxTimedHandlers        = -1;
+    int32_t maxExchangeContexts     = -1;
+    int32_t maxFabrics              = -1;
+    bool forceHandlerQuota          = false;
 #if CHIP_CONFIG_USE_ACCESS_RESTRICTIONS
     chip::Optional<std::vector<chip::Access::AccessRestrictionProvider::Entry>> commissioningArlEntries;
     chip::Optional<std::vector<chip::Access::AccessRestrictionProvider::Entry>> arlEntries;

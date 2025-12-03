@@ -79,6 +79,9 @@ class FaultInjectionCluster(
     numCallsToSkip: UInt,
     numCallsToFail: UInt,
     takeMutex: Boolean,
+    targetEndpoint: UShort?,
+    targetCluster: UInt?,
+    targetId: UInt?,
     timedInvokeTimeout: Duration? = null,
   ) {
     val commandId: UInt = 0u
@@ -100,6 +103,17 @@ class FaultInjectionCluster(
 
     val TAG_TAKE_MUTEX_REQ: Int = 4
     tlvWriter.put(ContextSpecificTag(TAG_TAKE_MUTEX_REQ), takeMutex)
+
+    val TAG_TARGET_ENDPOINT_REQ: Int = 5
+    targetEndpoint?.let {
+      tlvWriter.put(ContextSpecificTag(TAG_TARGET_ENDPOINT_REQ), targetEndpoint)
+    }
+
+    val TAG_TARGET_CLUSTER_REQ: Int = 6
+    targetCluster?.let { tlvWriter.put(ContextSpecificTag(TAG_TARGET_CLUSTER_REQ), targetCluster) }
+
+    val TAG_TARGET_ID_REQ: Int = 7
+    targetId?.let { tlvWriter.put(ContextSpecificTag(TAG_TARGET_ID_REQ), targetId) }
     tlvWriter.endStructure()
 
     val request: InvokeRequest =

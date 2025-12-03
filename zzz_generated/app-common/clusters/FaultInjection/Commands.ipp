@@ -39,6 +39,9 @@ CHIP_ERROR Type::Encode(TLV::TLVWriter & aWriter, TLV::Tag aTag) const
     encoder.Encode(to_underlying(Fields::kNumCallsToSkip), numCallsToSkip);
     encoder.Encode(to_underlying(Fields::kNumCallsToFail), numCallsToFail);
     encoder.Encode(to_underlying(Fields::kTakeMutex), takeMutex);
+    encoder.Encode(to_underlying(Fields::kTargetEndpoint), targetEndpoint);
+    encoder.Encode(to_underlying(Fields::kTargetCluster), targetCluster);
+    encoder.Encode(to_underlying(Fields::kTargetId), targetId);
     return encoder.Finalize();
 }
 
@@ -71,6 +74,18 @@ CHIP_ERROR DecodableType::Decode(TLV::TLVReader & reader)
         else if (__context_tag == to_underlying(Fields::kTakeMutex))
         {
             err = DataModel::Decode(reader, takeMutex);
+        }
+        else if (__context_tag == to_underlying(Fields::kTargetEndpoint))
+        {
+            err = DataModel::Decode(reader, targetEndpoint);
+        }
+        else if (__context_tag == to_underlying(Fields::kTargetCluster))
+        {
+            err = DataModel::Decode(reader, targetCluster);
+        }
+        else if (__context_tag == to_underlying(Fields::kTargetId))
+        {
+            err = DataModel::Decode(reader, targetId);
         }
 
         ReturnErrorOnFailure(err);

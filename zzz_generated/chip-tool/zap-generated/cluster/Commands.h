@@ -18952,6 +18952,9 @@ public:
         AddArgument("NumCallsToSkip", 0, UINT32_MAX, &mRequest.numCallsToSkip);
         AddArgument("NumCallsToFail", 0, UINT32_MAX, &mRequest.numCallsToFail);
         AddArgument("TakeMutex", 0, 1, &mRequest.takeMutex);
+        AddArgument("TargetEndpoint", 0, UINT16_MAX, &mRequest.targetEndpoint);
+        AddArgument("TargetCluster", 0, UINT32_MAX, &mRequest.targetCluster);
+        AddArgument("TargetId", 0, UINT32_MAX, &mRequest.targetId);
         ClusterCommand::AddArguments();
     }
 

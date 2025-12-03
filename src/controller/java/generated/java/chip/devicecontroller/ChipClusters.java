@@ -70895,11 +70895,11 @@ public class ChipClusters {
       return 0L;
     }
 
-    public void failAtFault(DefaultClusterCallback callback, Integer type, Long id, Long numCallsToSkip, Long numCallsToFail, Boolean takeMutex) {
-      failAtFault(callback, type, id, numCallsToSkip, numCallsToFail, takeMutex, 0);
+    public void failAtFault(DefaultClusterCallback callback, Integer type, Long id, Long numCallsToSkip, Long numCallsToFail, Boolean takeMutex, Optional<Integer> targetEndpoint, Optional<Long> targetCluster, Optional<Long> targetId) {
+      failAtFault(callback, type, id, numCallsToSkip, numCallsToFail, takeMutex, targetEndpoint, targetCluster, targetId, 0);
     }
 
-    public void failAtFault(DefaultClusterCallback callback, Integer type, Long id, Long numCallsToSkip, Long numCallsToFail, Boolean takeMutex, int timedInvokeTimeoutMs) {
+    public void failAtFault(DefaultClusterCallback callback, Integer type, Long id, Long numCallsToSkip, Long numCallsToFail, Boolean takeMutex, Optional<Integer> targetEndpoint, Optional<Long> targetCluster, Optional<Long> targetId, int timedInvokeTimeoutMs) {
       final long commandId = 0L;
 
       ArrayList<StructElement> elements = new ArrayList<>();
@@ -70922,6 +70922,18 @@ public class ChipClusters {
       final long takeMutexFieldID = 4L;
       BaseTLVType takeMutextlvValue = new BooleanType(takeMutex);
       elements.add(new StructElement(takeMutexFieldID, takeMutextlvValue));
+
+      final long targetEndpointFieldID = 5L;
+      BaseTLVType targetEndpointtlvValue = targetEndpoint.<BaseTLVType>map((nonOptionaltargetEndpoint) -> new UIntType(nonOptionaltargetEndpoint)).orElse(new EmptyType());
+      elements.add(new StructElement(targetEndpointFieldID, targetEndpointtlvValue));
+
+      final long targetClusterFieldID = 6L;
+      BaseTLVType targetClustertlvValue = targetCluster.<BaseTLVType>map((nonOptionaltargetCluster) -> new UIntType(nonOptionaltargetCluster)).orElse(new EmptyType());
+      elements.add(new StructElement(targetClusterFieldID, targetClustertlvValue));
+
+      final long targetIdFieldID = 7L;
+      BaseTLVType targetIdtlvValue = targetId.<BaseTLVType>map((nonOptionaltargetId) -> new UIntType(nonOptionaltargetId)).orElse(new EmptyType());
+      elements.add(new StructElement(targetIdFieldID, targetIdtlvValue));
 
       StructType commandArgs = new StructType(elements);
       invoke(new InvokeCallbackImpl(callback) {

@@ -30,6 +30,9 @@ namespace FaultInjection {
 static nl::FaultInjection::Record sFaultRecordArray[kFault_NumItems];
 static int32_t sFault_CHIPNotificationSize_Arguments[1];
 static int32_t sFault_FuzzExchangeHeader_Arguments[1];
+static int32_t sFault_AttributeRead_Arguments[3];  // endpoint, cluster, attribute
+static int32_t sFault_AttributeWrite_Arguments[3]; // endpoint, cluster, attribute
+static int32_t sFault_CommandInvoke_Arguments[3];  // endpoint, cluster, command
 static class nl::FaultInjection::Manager sChipFaultInMgr;
 static const nl::FaultInjection::Name sManagerName = "chip";
 
@@ -57,6 +60,22 @@ nl::FaultInjection::Manager & GetManager()
         sFaultRecordArray[kFault_FuzzExchangeHeaderTx].mArguments = sFault_FuzzExchangeHeader_Arguments;
         sFaultRecordArray[kFault_FuzzExchangeHeaderTx].mLengthOfArguments =
             static_cast<uint8_t>(sizeof(sFault_FuzzExchangeHeader_Arguments) / sizeof(sFault_FuzzExchangeHeader_Arguments[0]));
+        
+        // Initialize argument arrays for AttributeRead, AttributeWrite, and CommandInvoke faults
+        memset(&sFault_AttributeRead_Arguments, 0, sizeof(sFault_AttributeRead_Arguments));
+        sFaultRecordArray[kFault_AttributeRead].mArguments = sFault_AttributeRead_Arguments;
+        sFaultRecordArray[kFault_AttributeRead].mLengthOfArguments =
+            static_cast<uint8_t>(sizeof(sFault_AttributeRead_Arguments) / sizeof(sFault_AttributeRead_Arguments[0]));
+        
+        memset(&sFault_AttributeWrite_Arguments, 0, sizeof(sFault_AttributeWrite_Arguments));
+        sFaultRecordArray[kFault_AttributeWrite].mArguments = sFault_AttributeWrite_Arguments;
+        sFaultRecordArray[kFault_AttributeWrite].mLengthOfArguments =
+            static_cast<uint8_t>(sizeof(sFault_AttributeWrite_Arguments) / sizeof(sFault_AttributeWrite_Arguments[0]));
+        
+        memset(&sFault_CommandInvoke_Arguments, 0, sizeof(sFault_CommandInvoke_Arguments));
+        sFaultRecordArray[kFault_CommandInvoke].mArguments = sFault_CommandInvoke_Arguments;
+        sFaultRecordArray[kFault_CommandInvoke].mLengthOfArguments =
+            static_cast<uint8_t>(sizeof(sFault_CommandInvoke_Arguments) / sizeof(sFault_CommandInvoke_Arguments[0]));
     }
     return sChipFaultInMgr;
 }

@@ -84,7 +84,10 @@ namespace FaultInjection {
     X(ClearInMemoryAllocatedVideoStreams, 34)            /**< Empty in-memory allocated video streams during attribute read */     \
     X(ClearInMemoryAllocatedAudioStreams, 35)            /**< Empty in-memory allocated audio streams during attribute read */     \
     X(ClearInMemoryAllocatedSnapshotStreams, 36)         /**< Empty in-memory allocated snapshot streams during attribute read */  \
-    X(LoadPersistentCameraAVSMAttributes, 37)            /**< Load persisted Camera AVSM attributes during attribute read */
+    X(LoadPersistentCameraAVSMAttributes, 37)            /**< Load persisted Camera AVSM attributes during attribute read */        \
+    X(AttributeRead, 38)                                 /**< Fail attribute read operations */                                    \
+    X(AttributeWrite, 39)                                /**< Fail attribute write operations */                                   \
+    X(CommandInvoke, 40)                                 /**< Fail command invoke operations */
 
 // END-IF-CHANGE-ALSO-CHANGE(src/controller/python/matter/fault_injection/__init__.py)
 // WARNING: When adding/modifying Faults to the below macro, make sure the changes are duplicated to the CHIPFaultId enum in the

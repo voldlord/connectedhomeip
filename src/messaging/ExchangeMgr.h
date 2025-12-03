@@ -201,6 +201,12 @@ public:
 
     size_t GetNumActiveExchanges() { return mContextPool.Allocated(); }
 
+    /**
+     * Override the maximal capacity for exchange contexts to test resource limits.
+     * If -1 is passed in, no override is instituted and default behavior resumes.
+     */
+    void SetExchangeContextCapacity(int32_t sz) { mExchangeContextCapacityOverride = sz; }
+
 private:
     enum class State
     {
@@ -242,6 +248,9 @@ private:
     ReliableMessageMgr mReliableMessageMgr;
 
     UnsolicitedMessageHandlerSlot UMHandlerPool[CHIP_CONFIG_MAX_UNSOLICITED_MESSAGE_HANDLERS];
+
+    // Override capacity for exchange contexts (-1 means use default)
+    int32_t mExchangeContextCapacityOverride = -1;
 
     CHIP_ERROR RegisterUMH(Protocols::Id protocolId, int16_t msgType, UnsolicitedMessageHandler * handler);
     CHIP_ERROR UnregisterUMH(Protocols::Id protocolId, int16_t msgType);

@@ -68,6 +68,9 @@ enum class Fields : uint8_t
     kNumCallsToSkip = 2,
     kNumCallsToFail = 3,
     kTakeMutex      = 4,
+    kTargetEndpoint = 5,
+    kTargetCluster  = 6,
+    kTargetId       = 7,
 };
 
 struct Type
@@ -82,6 +85,9 @@ public:
     uint32_t numCallsToSkip = static_cast<uint32_t>(0);
     uint32_t numCallsToFail = static_cast<uint32_t>(0);
     bool takeMutex          = static_cast<bool>(0);
+    Optional<chip::EndpointId> targetEndpoint;
+    Optional<chip::ClusterId> targetCluster;
+    Optional<uint32_t> targetId;
 
     CHIP_ERROR Encode(TLV::TLVWriter & aWriter, TLV::Tag aTag) const;
 
@@ -102,6 +108,9 @@ public:
     uint32_t numCallsToSkip = static_cast<uint32_t>(0);
     uint32_t numCallsToFail = static_cast<uint32_t>(0);
     bool takeMutex          = static_cast<bool>(0);
+    Optional<chip::EndpointId> targetEndpoint;
+    Optional<chip::ClusterId> targetCluster;
+    Optional<uint32_t> targetId;
 
     CHIP_ERROR Decode(TLV::TLVReader & reader);
 };

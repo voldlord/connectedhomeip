@@ -21271,7 +21271,7 @@ public class ClusterIDMapping {
                 }
                 throw new NoSuchFieldError();
             }
-        }public enum FailAtFaultCommandField {Type(0),Id(1),NumCallsToSkip(2),NumCallsToFail(3),TakeMutex(4),;
+        }public enum FailAtFaultCommandField {Type(0),Id(1),NumCallsToSkip(2),NumCallsToFail(3),TakeMutex(4),TargetEndpoint(5),TargetCluster(6),TargetId(7),;
                     private final int id;
                     FailAtFaultCommandField(int id) {
                         this.id = id;

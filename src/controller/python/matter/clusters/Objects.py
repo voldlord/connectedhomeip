@@ -56393,6 +56393,9 @@ class FaultInjection(Cluster):
                         ClusterObjectFieldDescriptor(Label="numCallsToSkip", Tag=2, Type=uint),
                         ClusterObjectFieldDescriptor(Label="numCallsToFail", Tag=3, Type=uint),
                         ClusterObjectFieldDescriptor(Label="takeMutex", Tag=4, Type=bool),
+                        ClusterObjectFieldDescriptor(Label="targetEndpoint", Tag=5, Type=typing.Optional[uint]),
+                        ClusterObjectFieldDescriptor(Label="targetCluster", Tag=6, Type=typing.Optional[uint]),
+                        ClusterObjectFieldDescriptor(Label="targetId", Tag=7, Type=typing.Optional[uint]),
                     ])
 
             type: FaultInjection.Enums.FaultType = 0
@@ -56400,6 +56403,9 @@ class FaultInjection(Cluster):
             numCallsToSkip: uint = 0
             numCallsToFail: uint = 0
             takeMutex: bool = False
+            targetEndpoint: typing.Optional[uint] = None
+            targetCluster: typing.Optional[uint] = None
+            targetId: typing.Optional[uint] = None
 
         @dataclass
         class FailRandomlyAtFault(ClusterCommand):

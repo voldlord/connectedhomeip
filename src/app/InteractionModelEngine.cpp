@@ -582,6 +582,15 @@ Status InteractionModelEngine::OnInvokeCommandRequest(Messaging::ExchangeContext
                                                       const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload,
                                                       bool aIsTimedInvoke)
 {
+    // Check if we've hit the override limit for command handlers
+    if (mCommandHandlerCapacityOverride != -1 && 
+        mCommandResponderObjs.Allocated() >= static_cast<size_t>(mCommandHandlerCapacityOverride))
+    {
+        ChipLogProgress(InteractionModel, "no resource for Invoke interaction (override limit: %d, active: %u)", 
+                        mCommandHandlerCapacityOverride, static_cast<uint32_t>(mCommandResponderObjs.Allocated()));
+        return Status::Busy;
+    }
+
     // TODO(#30453): Refactor CommandResponseSender's constructor to accept an exchange context parameter.
     CommandResponseSender * commandResponder = mCommandResponderObjs.CreateObject(this, this);
     if (commandResponder == nullptr)
@@ -917,6 +926,8 @@ Protocols::InteractionModel::Status InteractionModelEngine::OnReadInitialRequest
                                                        requestedAttributePathCount, requestedEventPathCount);
             if (checkResult != Status::Success)
             {
+                ChipLogProgress(InteractionModel, "no resource for %s interaction",
+                        aInteractionType == ReadHandler::InteractionType::Subscribe ? "Subscribe" : "Read");
                 return checkResult;
             }
         }
@@ -944,6 +955,15 @@ Protocols::InteractionModel::Status InteractionModelEngine::OnWriteRequest(Messa
 {
     ChipLogDetail(InteractionModel, "Received Write request");
 
+    // Check if we've hit the override limit for write handlers
+    uint32_t numActiveWrite = GetNumActiveWriteHandlers();
+    if (mWriteHandlerCapacityOverride != -1 && numActiveWrite >= static_cast<uint32_t>(mWriteHandlerCapacityOverride))
+    {
+        ChipLogProgress(InteractionModel, "no resource for write interaction (override limit: %d, active: %u)", 
+                        mWriteHandlerCapacityOverride, numActiveWrite);
+        return Status::Busy;
+    }
+
     for (auto & writeHandler : mWriteHandlers)
     {
         if (writeHandler.IsFree())
@@ -960,6 +980,16 @@ CHIP_ERROR InteractionModelEngine::OnTimedRequest(Messaging::ExchangeContext * a
                                                   const PayloadHeader & aPayloadHeader, System::PacketBufferHandle && aPayload,
                                                   Protocols::InteractionModel::Status & aStatus)
 {
+    // Check if we've hit the override limit for timed handlers
+    if (mTimedHandlerCapacityOverride != -1 && 
+        mTimedHandlers.Allocated() >= static_cast<size_t>(mTimedHandlerCapacityOverride))
+    {
+        ChipLogProgress(InteractionModel, "no resource for Timed interaction (override limit: %d, active: %u)", 
+                        mTimedHandlerCapacityOverride, static_cast<uint32_t>(mTimedHandlers.Allocated()));
+        aStatus = Status::Busy;
+        return CHIP_ERROR_NO_MEMORY;
+    }
+
     TimedHandler * handler = mTimedHandlers.CreateObject(this);
     if (handler == nullptr)
     {
@@ -1232,12 +1262,8 @@ bool InteractionModelEngine::EnsureResourceForSubscription(FabricIndex aFabricIn
                                                            size_t aRequestedEventPathCount)
 {
 #if CHIP_SYSTEM_CONFIG_POOL_USE_HEAP && !CHIP_CONFIG_IM_FORCE_FABRIC_QUOTA_CHECK
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    // Check forceHandlerQuota to allow resource limit testing even in non-unit-test builds
     const bool allowUnlimited = !mForceHandlerQuota;
-#else  // CONFIG_BUILD_FOR_HOST_UNIT_TEST
-       // If the resources are allocated on the heap, we should be able to handle as many Read / Subscribe requests as possible.
-    const bool allowUnlimited = true;
-#endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
 #else  // CHIP_SYSTEM_CONFIG_POOL_USE_HEAP && !CHIP_CONFIG_IM_FORCE_FABRIC_QUOTA_CHECK
     const bool allowUnlimited = false;
 #endif // CHIP_SYSTEM_CONFIG_POOL_USE_HEAP && !CHIP_CONFIG_IM_FORCE_FABRIC_QUOTA_CHECK
@@ -1416,12 +1442,8 @@ Protocols::InteractionModel::Status InteractionModelEngine::EnsureResourceForRea
                                                                                   size_t aRequestedEventPathCount)
 {
 #if CHIP_SYSTEM_CONFIG_POOL_USE_HEAP && !CHIP_CONFIG_IM_FORCE_FABRIC_QUOTA_CHECK
-#if CONFIG_BUILD_FOR_HOST_UNIT_TEST
+    // Check forceHandlerQuota to allow resource limit testing even in non-unit-test builds
     const bool allowUnlimited = !mForceHandlerQuota;
-#else  // CONFIG_BUILD_FOR_HOST_UNIT_TEST
-       // If the resources are allocated on the heap, we should be able to handle as many Read / Subscribe requests as possible.
-    const bool allowUnlimited = true;
-#endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
 #else  // CHIP_SYSTEM_CONFIG_POOL_USE_HEAP && !CHIP_CONFIG_IM_FORCE_FABRIC_QUOTA_CHECK
     const bool allowUnlimited = false;
 #endif // CHIP_SYSTEM_CONFIG_POOL_USE_HEAP && !CHIP_CONFIG_IM_FORCE_FABRIC_QUOTA_CHECK

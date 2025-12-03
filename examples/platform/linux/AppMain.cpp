@@ -962,6 +962,60 @@ void ChipLinuxAppMainLoop(AppMainLoopImplementation * impl)
 #endif // CHIP_CONFIG_PERSIST_SUBSCRIPTIONS && CHIP_CONFIG_SUBSCRIPTION_TIMEOUT_RESUMPTION
 #endif // CONFIG_BUILD_FOR_HOST_UNIT_TEST
 
+    // Apply resource limit overrides for testing if specified
+    auto & deviceOptions = LinuxDeviceOptions::GetInstance();
+    auto * imEngine = chip::app::InteractionModelEngine::GetInstance();
+    
+    if (deviceOptions.maxReadHandlers != -1)
+    {
+        imEngine->SetHandlerCapacityForReads(deviceOptions.maxReadHandlers);
+    }
+    
+    if (deviceOptions.maxSubscriptionHandlers != -1)
+    {
+        imEngine->SetHandlerCapacityForSubscriptions(deviceOptions.maxSubscriptionHandlers);
+    }
+    
+    if (deviceOptions.maxReadPaths != -1)
+    {
+        imEngine->SetPathPoolCapacityForReads(deviceOptions.maxReadPaths);
+    }
+    
+    if (deviceOptions.maxSubscriptionPaths != -1)
+    {
+        imEngine->SetPathPoolCapacityForSubscriptions(deviceOptions.maxSubscriptionPaths);
+    }
+    
+    if (deviceOptions.maxWriteHandlers != -1)
+    {
+        imEngine->SetWriteHandlerCapacity(deviceOptions.maxWriteHandlers);
+    }
+    
+    if (deviceOptions.maxCommandHandlers != -1)
+    {
+        imEngine->SetCommandHandlerCapacity(deviceOptions.maxCommandHandlers);
+    }
+    
+    if (deviceOptions.maxTimedHandlers != -1)
+    {
+        imEngine->SetTimedHandlerCapacity(deviceOptions.maxTimedHandlers);
+    }
+    
+    if (deviceOptions.maxExchangeContexts != -1)
+    {
+        Server::GetInstance().GetExchangeManager().SetExchangeContextCapacity(deviceOptions.maxExchangeContexts);
+    }
+    
+    if (deviceOptions.maxFabrics != -1)
+    {
+        imEngine->SetConfigMaxFabrics(deviceOptions.maxFabrics);
+    }
+    
+    if (deviceOptions.forceHandlerQuota)
+    {
+        imEngine->SetForceHandlerQuota(true);
+    }
+
     // Now that the server has started and we are done with our startup logging,
     // log our discovery/onboarding information again so it's not lost in the
     // noise.
