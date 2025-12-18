@@ -46,6 +46,7 @@
 
 #include "CommissionableInit.h"
 #include "Device.h"
+#include "ExternalAttributeClient.h"
 #include "include/main.h"
 #include "main.h"
 #include <app/server/Server.h>
@@ -1195,6 +1196,153 @@ void * bridge_polling_thread(void * context)
                 // Remove the most recently added dynamic light endpoint
                 RemoveDynamicLight();
             }
+
+            // Commands for external attribute access
+            if (ch == 'q')
+            {
+                // Read attribute from remote node (one-time read)
+                // Single-line format: q <node-id-hex> <endpoint> <cluster-hex> <attribute-hex>
+                // Example: q 0x1234567890ABCDEF 1 0x0006 0x0000
+                // Wildcards: use 0xFFFF for endpoint, 0xFFFFFFFF for cluster/attribute
+
+                uint64_t nodeId;
+                uint16_t endpoint;
+                uint32_t cluster, attribute;
+
+                if (scanf(" %llx %hx %x %x", &nodeId, &endpoint, &cluster, &attribute) == 4)
+                {
+                    // Clear input buffer
+                    int c;
+                    while ((c = getchar()) != '\n' && c != EOF)
+                        ;
+
+                    struct ReadParams
+                    {
+                        NodeId nodeId;
+                        EndpointId endpoint;
+                        ClusterId cluster;
+                        AttributeId attribute;
+                    };
+
+                    auto * params = Platform::New<ReadParams>();
+                    if (params != nullptr)
+                    {
+                        params->nodeId    = nodeId;
+                        params->endpoint  = static_cast<EndpointId>(endpoint);
+                        params->cluster   = cluster;
+                        params->attribute = attribute;
+
+                        auto worker = [](intptr_t context) {
+                            auto * p = reinterpret_cast<ReadParams *>(context);
+
+                            CHIP_ERROR err = bridge::ExternalAttributeClient::GetInstance().ReadAttribute(
+                                p->nodeId, p->endpoint, p->cluster, p->attribute);
+
+                            if (err != CHIP_NO_ERROR)
+                            {
+                                ChipLogError(NotSpecified, "Failed to read attribute: %s", ErrorStr(err));
+                            }
+
+                            Platform::Delete(p);
+                        };
+
+                        PlatformMgr().ScheduleWork(worker, reinterpret_cast<intptr_t>(params));
+                    }
+                    else
+                    {
+                        ChipLogError(NotSpecified, "Failed to allocate memory for read params");
+                    }
+                }
+                else
+                {
+                    printf("Invalid format. Usage: q <node-id> <endpoint> <cluster> <attribute>\n");
+                    printf("Example: q 0x1234567890ABCDEF 1 0x0006 0x0000\n");
+                    printf("Example: q 0x1234567890ABCDEF 0 0x001D 0x0003 (read Descriptor PartsList)\n");
+                    // Clear input buffer on error
+                    int c;
+                    while ((c = getchar()) != '\n' && c != EOF)
+                        ;
+                }
+            }
+
+            if (ch == 's')
+            {
+                // Subscribe to attribute on remote node
+                // Single-line format: s <node-id-hex> <endpoint> <cluster-hex> <attribute-hex> <min-interval> <max-interval>
+                // Example: s 0x1234567890ABCDEF 1 0x0006 0x0000 1 10
+                // Wildcards: use 0xFFFF for endpoint, 0xFFFFFFFF for cluster/attribute
+
+                uint64_t nodeId;
+                uint16_t endpoint;
+                uint32_t cluster, attribute;
+                uint16_t minInterval, maxInterval;
+
+                if (scanf(" %llx %hx %x %x %hu %hu", &nodeId, &endpoint, &cluster, &attribute, &minInterval, &maxInterval) == 6)
+                {
+                    // Clear input buffer
+                    int c;
+                    while ((c = getchar()) != '\n' && c != EOF)
+                        ;
+
+                    struct SubscribeParams
+                    {
+                        NodeId nodeId;
+                        EndpointId endpoint;
+                        ClusterId cluster;
+                        AttributeId attribute;
+                        uint16_t minInterval;
+                        uint16_t maxInterval;
+                    };
+
+                    auto * params = Platform::New<SubscribeParams>();
+                    if (params != nullptr)
+                    {
+                        params->nodeId      = nodeId;
+                        params->endpoint    = static_cast<EndpointId>(endpoint);
+                        params->cluster     = cluster;
+                        params->attribute   = attribute;
+                        params->minInterval = minInterval;
+                        params->maxInterval = maxInterval;
+
+                        auto worker = [](intptr_t context) {
+                            auto * p = reinterpret_cast<SubscribeParams *>(context);
+
+                            CHIP_ERROR err = bridge::ExternalAttributeClient::GetInstance().SubscribeToAttribute(
+                                p->nodeId, p->endpoint, p->cluster, p->attribute, p->minInterval, p->maxInterval);
+
+                            if (err != CHIP_NO_ERROR)
+                            {
+                                ChipLogError(NotSpecified, "Failed to create subscription: %s", ErrorStr(err));
+                            }
+
+                            Platform::Delete(p);
+                        };
+
+                        PlatformMgr().ScheduleWork(worker, reinterpret_cast<intptr_t>(params));
+                    }
+                    else
+                    {
+                        ChipLogError(NotSpecified, "Failed to allocate memory for subscription params");
+                    }
+                }
+                else
+                {
+                    printf("Invalid format. Usage: s <node-id> <endpoint> <cluster> <attribute> <min> <max>\n");
+                    printf("Example: s 0x1234567890ABCDEF 1 0x0006 0x0000 1 10\n");
+                    // Clear input buffer on error
+                    int c;
+                    while ((c = getchar()) != '\n' && c != EOF)
+                        ;
+                }
+            }
+
+            if (ch == 'x')
+            {
+                // List active subscriptions
+                PlatformMgr().ScheduleWork(
+                    [](intptr_t) { bridge::ExternalAttributeClient::GetInstance().ListSubscriptions(); }, 0);
+            }
+
             continue;
         }
 
