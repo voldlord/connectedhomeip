@@ -24,6 +24,130 @@
 namespace chip {
 namespace bridge {
 
+// Helper function to log attribute value in a parseable format
+static void LogAttributeValue(const char * prefix, const app::ConcreteDataAttributePath & aPath, TLV::TLVReader * apData)
+{
+    TLV::TLVReader reader(*apData);
+    TLV::TLVType tlvType = reader.GetType();
+
+    ChipLogProgress(NotSpecified, "%s EP=%u CL=0x%lx ATTR=0x%lx ", prefix, aPath.mEndpointId,
+                    static_cast<unsigned long>(aPath.mClusterId), static_cast<unsigned long>(aPath.mAttributeId));
+
+    switch (tlvType)
+    {
+    case TLV::kTLVType_Boolean: {
+        bool value;
+        if (reader.Get(value) == CHIP_NO_ERROR)
+        {
+            ChipLogProgress(NotSpecified, "  VALUE=%s", value ? "true" : "false");
+        }
+        break;
+    }
+    case TLV::kTLVType_SignedInteger: {
+        int64_t value;
+        if (reader.Get(value) == CHIP_NO_ERROR)
+        {
+            ChipLogProgress(NotSpecified, "  VALUE=%lld", static_cast<long long>(value));
+        }
+        break;
+    }
+    case TLV::kTLVType_UnsignedInteger: {
+        uint64_t value;
+        if (reader.Get(value) == CHIP_NO_ERROR)
+        {
+            ChipLogProgress(NotSpecified, "  VALUE=%llu", static_cast<unsigned long long>(value));
+        }
+        break;
+    }
+    case TLV::kTLVType_UTF8String: {
+        CharSpan value;
+        if (reader.Get(value) == CHIP_NO_ERROR)
+        {
+            ChipLogProgress(NotSpecified, "  VALUE=%.*s", static_cast<int>(value.size()), value.data());
+        }
+        break;
+    }
+    case TLV::kTLVType_Null: {
+        ChipLogProgress(NotSpecified, "  VALUE=null");
+        break;
+    }
+    case TLV::kTLVType_Array: {
+        // For arrays, build a single-line string representation
+        char arrayStr[256] = "[";
+        size_t offset = 1;
+        TLV::TLVType containerType;
+        
+        if (reader.EnterContainer(containerType) == CHIP_NO_ERROR)
+        {
+            bool first = true;
+            while (reader.Next() != CHIP_END_OF_TLV && offset < sizeof(arrayStr) - 20)
+            {
+                if (!first && offset < sizeof(arrayStr) - 2)
+                {
+                    arrayStr[offset++] = ',';
+                    arrayStr[offset++] = ' ';
+                }
+                first = false;
+                
+                TLV::TLVType elemType = reader.GetType();
+                if (elemType == TLV::kTLVType_UnsignedInteger)
+                {
+                    uint64_t val;
+                    if (reader.Get(val) == CHIP_NO_ERROR)
+                    {
+                        int written = snprintf(arrayStr + offset, sizeof(arrayStr) - offset, "%llu", 
+                                              static_cast<unsigned long long>(val));
+                        if (written > 0)
+                        {
+                            offset += static_cast<size_t>(written);
+                        }
+                    }
+                }
+                else if (elemType == TLV::kTLVType_SignedInteger)
+                {
+                    int64_t val;
+                    if (reader.Get(val) == CHIP_NO_ERROR)
+                    {
+                        int written = snprintf(arrayStr + offset, sizeof(arrayStr) - offset, "%lld", 
+                                              static_cast<long long>(val));
+                        if (written > 0)
+                        {
+                            offset += static_cast<size_t>(written);
+                        }
+                    }
+                }
+                else
+                {
+                    int written = snprintf(arrayStr + offset, sizeof(arrayStr) - offset, "<?>");
+                    if (written > 0)
+                    {
+                        offset += static_cast<size_t>(written);
+                    }
+                }
+            }
+            reader.ExitContainer(containerType);
+            
+            if (offset < sizeof(arrayStr) - 1)
+            {
+                arrayStr[offset++] = ']';
+                arrayStr[offset] = '\0';
+            }
+            
+            ChipLogProgress(NotSpecified, "  VALUE=%s", arrayStr);
+        }
+        break;
+    }
+    case TLV::kTLVType_Structure: {
+        ChipLogProgress(NotSpecified, "  VALUE=<structure>");
+        break;
+    }
+    default: {
+        ChipLogProgress(NotSpecified, "  VALUE=<unknown type %u>", static_cast<unsigned>(tlvType));
+        break;
+    }
+    }
+}
+
 // Callback implementation for one-time reads
 class ReadCallback : public app::ReadClient::Callback
 {
@@ -35,63 +159,7 @@ public:
     {
         if (aStatus.IsSuccess() && apData != nullptr)
         {
-            // Try to decode the value as different types and print accordingly
-            TLV::TLVReader reader(*apData);
-
-            // Get the TLV type to determine how to decode
-            TLV::TLVType tlvType = reader.GetType();
-
-            ChipLogProgress(NotSpecified, "[READ] EP=%u CL=0x%lx ATTR=0x%lx ", aPath.mEndpointId,
-                            static_cast<unsigned long>(aPath.mClusterId), static_cast<unsigned long>(aPath.mAttributeId));
-
-            switch (tlvType)
-            {
-            case TLV::kTLVType_Boolean: {
-                bool value;
-                if (reader.Get(value) == CHIP_NO_ERROR)
-                {
-                    ChipLogProgress(NotSpecified, "  VALUE=%s", value ? "true" : "false");
-                }
-                break;
-            }
-            case TLV::kTLVType_SignedInteger: {
-                int64_t value;
-                if (reader.Get(value) == CHIP_NO_ERROR)
-                {
-                    ChipLogProgress(NotSpecified, "  VALUE=%lld", static_cast<long long>(value));
-                }
-                break;
-            }
-            case TLV::kTLVType_UnsignedInteger: {
-                uint64_t value;
-                if (reader.Get(value) == CHIP_NO_ERROR)
-                {
-                    ChipLogProgress(NotSpecified, "  VALUE=%llu", static_cast<unsigned long long>(value));
-                }
-                break;
-            }
-            case TLV::kTLVType_UTF8String: {
-                CharSpan value;
-                if (reader.Get(value) == CHIP_NO_ERROR)
-                {
-                    ChipLogProgress(NotSpecified, "  VALUE=%.*s", static_cast<int>(value.size()), value.data());
-                }
-                break;
-            }
-            case TLV::kTLVType_Null: {
-                ChipLogProgress(NotSpecified, "  VALUE=null");
-                break;
-            }
-            case TLV::kTLVType_Structure:
-            case TLV::kTLVType_Array: {
-                ChipLogProgress(NotSpecified, "  VALUE=<complex type>");
-                break;
-            }
-            default: {
-                ChipLogProgress(NotSpecified, "  VALUE=<unknown type %u>", static_cast<unsigned>(tlvType));
-                break;
-            }
-            }
+            LogAttributeValue("[READ]", aPath, apData);
         }
         else
         {
@@ -138,63 +206,7 @@ public:
     {
         if (aStatus.IsSuccess() && apData != nullptr)
         {
-            // Try to decode the value as different types and print accordingly
-            TLV::TLVReader reader(*apData);
-
-            // Get the TLV type to determine how to decode
-            TLV::TLVType tlvType = reader.GetType();
-
-            ChipLogProgress(NotSpecified, "[SUBSCRIPTION] EP=%u CL=0x%lx ATTR=0x%lx ", aPath.mEndpointId,
-                            static_cast<unsigned long>(aPath.mClusterId), static_cast<unsigned long>(aPath.mAttributeId));
-
-            switch (tlvType)
-            {
-            case TLV::kTLVType_Boolean: {
-                bool value;
-                if (reader.Get(value) == CHIP_NO_ERROR)
-                {
-                    ChipLogProgress(NotSpecified, "  VALUE=%s", value ? "true" : "false");
-                }
-                break;
-            }
-            case TLV::kTLVType_SignedInteger: {
-                int64_t value;
-                if (reader.Get(value) == CHIP_NO_ERROR)
-                {
-                    ChipLogProgress(NotSpecified, "  VALUE=%lld", static_cast<long long>(value));
-                }
-                break;
-            }
-            case TLV::kTLVType_UnsignedInteger: {
-                uint64_t value;
-                if (reader.Get(value) == CHIP_NO_ERROR)
-                {
-                    ChipLogProgress(NotSpecified, "  VALUE=%llu", static_cast<unsigned long long>(value));
-                }
-                break;
-            }
-            case TLV::kTLVType_UTF8String: {
-                CharSpan value;
-                if (reader.Get(value) == CHIP_NO_ERROR)
-                {
-                    ChipLogProgress(NotSpecified, "  VALUE=%.*s", static_cast<int>(value.size()), value.data());
-                }
-                break;
-            }
-            case TLV::kTLVType_Null: {
-                ChipLogProgress(NotSpecified, "  VALUE=null");
-                break;
-            }
-            case TLV::kTLVType_Structure:
-            case TLV::kTLVType_Array: {
-                ChipLogProgress(NotSpecified, "  VALUE=<complex type>");
-                break;
-            }
-            default: {
-                ChipLogProgress(NotSpecified, "  VALUE=<unknown type %u>", static_cast<unsigned>(tlvType));
-                break;
-            }
-            }
+            LogAttributeValue("[SUBSCRIPTION]", aPath, apData);
         }
         else
         {
