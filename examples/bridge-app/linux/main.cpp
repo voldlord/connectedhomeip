@@ -671,7 +671,7 @@ Protocols::InteractionModel::Status HandleReadBasicInformationAttribute(Device *
     }
     else if ((attributeId == VendorID::Id) && (maxReadLength == 2))
     {
-        uint16_t vendorId = 0xFFF1; // Test vendor ID
+        uint16_t vendorId = 0x1217;
         memcpy(buffer, &vendorId, sizeof(vendorId));
     }
     else if ((attributeId == ProductName::Id) && (maxReadLength == 32))
@@ -681,7 +681,7 @@ Protocols::InteractionModel::Status HandleReadBasicInformationAttribute(Device *
     }
     else if ((attributeId == ProductID::Id) && (maxReadLength == 2))
     {
-        uint16_t productId = 0x8000; // Test product ID
+        uint16_t productId = 0x0600;
         memcpy(buffer, &productId, sizeof(productId));
     }
     else if ((attributeId == NodeLabel::Id) && (maxReadLength == 32))
