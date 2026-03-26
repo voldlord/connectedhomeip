@@ -52,6 +52,7 @@
 #include <app/server/Server.h>
 
 #include <cassert>
+#include <cinttypes>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -1209,7 +1210,7 @@ void * bridge_polling_thread(void * context)
                 uint16_t endpoint;
                 uint32_t cluster, attribute;
 
-                if (scanf(" %llx %hx %x %x", &nodeId, &endpoint, &cluster, &attribute) == 4)
+                if (scanf(" %" SCNx64 " %hx %x %x", &nodeId, &endpoint, &cluster, &attribute) == 4)
                 {
                     // Clear input buffer
                     int c;
@@ -1232,8 +1233,8 @@ void * bridge_polling_thread(void * context)
                         params->cluster   = cluster;
                         params->attribute = attribute;
 
-                        auto worker = [](intptr_t context) {
-                            auto * p = reinterpret_cast<ReadParams *>(context);
+                        auto worker = [](intptr_t closure) {
+                            auto * p = reinterpret_cast<ReadParams *>(closure);
 
                             CHIP_ERROR err = bridge::ExternalAttributeClient::GetInstance().ReadAttribute(
                                 p->nodeId, p->endpoint, p->cluster, p->attribute);
@@ -1277,7 +1278,7 @@ void * bridge_polling_thread(void * context)
                 uint32_t cluster, attribute;
                 uint16_t minInterval, maxInterval;
 
-                if (scanf(" %llx %hx %x %x %hu %hu", &nodeId, &endpoint, &cluster, &attribute, &minInterval, &maxInterval) == 6)
+                if (scanf(" %" SCNx64 " %hx %x %x %hu %hu", &nodeId, &endpoint, &cluster, &attribute, &minInterval, &maxInterval) == 6)
                 {
                     // Clear input buffer
                     int c;
@@ -1304,8 +1305,8 @@ void * bridge_polling_thread(void * context)
                         params->minInterval = minInterval;
                         params->maxInterval = maxInterval;
 
-                        auto worker = [](intptr_t context) {
-                            auto * p = reinterpret_cast<SubscribeParams *>(context);
+                        auto worker = [](intptr_t closure) {
+                            auto * p = reinterpret_cast<SubscribeParams *>(closure);
 
                             CHIP_ERROR err = bridge::ExternalAttributeClient::GetInstance().SubscribeToAttribute(
                                 p->nodeId, p->endpoint, p->cluster, p->attribute, p->minInterval, p->maxInterval);

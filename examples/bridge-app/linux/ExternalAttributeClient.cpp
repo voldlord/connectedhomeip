@@ -165,7 +165,7 @@ public:
         {
             ChipLogError(NotSpecified, "[READ] EP=%u CL=0x%lx ATTR=0x%lx ERROR: Status=0x%x", aPath.mEndpointId,
                          static_cast<unsigned long>(aPath.mClusterId), static_cast<unsigned long>(aPath.mAttributeId),
-                         aStatus.mStatus);
+                         static_cast<unsigned int>(chip::to_underlying(aStatus.mStatus)));
         }
     }
 
@@ -212,7 +212,7 @@ public:
         {
             ChipLogError(NotSpecified, "[SUBSCRIPTION] EP=%u CL=0x%lx ATTR=0x%lx ERROR: Status=0x%x", aPath.mEndpointId,
                          static_cast<unsigned long>(aPath.mClusterId), static_cast<unsigned long>(aPath.mAttributeId),
-                         aStatus.mStatus);
+                         static_cast<unsigned int>(chip::to_underlying(aStatus.mStatus)));
         }
     }
 
