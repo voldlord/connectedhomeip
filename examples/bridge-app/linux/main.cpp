@@ -34,7 +34,6 @@
 #include <credentials/DeviceAttestationCredsProvider.h>
 #include <credentials/examples/DeviceAttestationCredsExample.h>
 #include <lib/core/CHIPError.h>
-#include <lib/support/CHIPFaultInjection.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/ZclString.h>
 #include <platform/CommissionableDataProvider.h>
@@ -728,36 +727,6 @@ Protocols::InteractionModel::Status emberAfExternalAttributeReadCallback(Endpoin
 
     Protocols::InteractionModel::Status ret = Protocols::InteractionModel::Status::Failure;
 
-#if CHIP_WITH_NLFAULTINJECTION
-    // Fault injection for bridge external attribute reads
-    CHIP_FAULT_INJECT_WITH_ARGS(
-        chip::FaultInjection::kFault_AttributeRead,
-        {
-            nl::FaultInjection::Manager & mgr = chip::FaultInjection::GetManager();
-            const nl::FaultInjection::Record * record = &mgr.GetFaultRecords()[chip::FaultInjection::kFault_AttributeRead];
-            
-            if (record->mNumArguments >= 3)
-            {
-                uint16_t targetEndpoint = static_cast<uint16_t>(record->mArguments[0]);
-                uint32_t targetCluster = static_cast<uint32_t>(record->mArguments[1]);
-                uint32_t targetAttribute = static_cast<uint32_t>(record->mArguments[2]);
-                
-                // Match with wildcards (0xFFFF/0xFFFFFFFF = any)
-                if ((targetEndpoint == 0xFFFF || endpoint == targetEndpoint) &&
-                    (targetCluster == 0xFFFFFFFF || clusterId == targetCluster) &&
-                    (targetAttribute == 0xFFFFFFFF || attributeMetadata->attributeId == targetAttribute))
-                {
-                    ChipLogError(DeviceLayer, "Fault injected: Bridge external read failed for EP:%u Cluster:0x%lx Attr:0x%lx",
-                                endpoint, static_cast<unsigned long>(clusterId), 
-                                static_cast<unsigned long>(attributeMetadata->attributeId));
-                    return Protocols::InteractionModel::Status::Failure;
-                }
-            }
-        },
-        {}
-    );
-#endif // CHIP_WITH_NLFAULTINJECTION
-
     if ((endpointIndex < CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT) && (gDevices[endpointIndex] != nullptr))
     {
         Device * dev = gDevices[endpointIndex];
@@ -854,36 +823,6 @@ Protocols::InteractionModel::Status emberAfExternalAttributeWriteCallback(Endpoi
     Protocols::InteractionModel::Status ret = Protocols::InteractionModel::Status::Failure;
 
     // ChipLogProgress(DeviceLayer, "emberAfExternalAttributeWriteCallback: ep=%d", endpoint);
-
-#if CHIP_WITH_NLFAULTINJECTION
-    // Fault injection for bridge external attribute writes
-    CHIP_FAULT_INJECT_WITH_ARGS(
-        chip::FaultInjection::kFault_AttributeWrite,
-        {
-            nl::FaultInjection::Manager & mgr = chip::FaultInjection::GetManager();
-            const nl::FaultInjection::Record * record = &mgr.GetFaultRecords()[chip::FaultInjection::kFault_AttributeWrite];
-            
-            if (record->mNumArguments >= 3)
-            {
-                uint16_t targetEndpoint = static_cast<uint16_t>(record->mArguments[0]);
-                uint32_t targetCluster = static_cast<uint32_t>(record->mArguments[1]);
-                uint32_t targetAttribute = static_cast<uint32_t>(record->mArguments[2]);
-                
-                // Match with wildcards (0xFFFF/0xFFFFFFFF = any)
-                if ((targetEndpoint == 0xFFFF || endpoint == targetEndpoint) &&
-                    (targetCluster == 0xFFFFFFFF || clusterId == targetCluster) &&
-                    (targetAttribute == 0xFFFFFFFF || attributeMetadata->attributeId == targetAttribute))
-                {
-                    ChipLogError(DeviceLayer, "Fault injected: Bridge external write failed for EP:%u Cluster:0x%lx Attr:0x%lx",
-                                endpoint, static_cast<unsigned long>(clusterId), 
-                                static_cast<unsigned long>(attributeMetadata->attributeId));
-                    return Protocols::InteractionModel::Status::Failure;
-                }
-            }
-        },
-        {}
-    );
-#endif // CHIP_WITH_NLFAULTINJECTION
 
     if (endpointIndex < CHIP_DEVICE_CONFIG_DYNAMIC_ENDPOINT_COUNT)
     {

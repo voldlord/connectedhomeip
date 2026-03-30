@@ -37,6 +37,7 @@
 #include <app/util/odd-sized-integers.h>
 #include <data-model-providers/codegen/EmberAttributeDataBuffer.h>
 #include <lib/core/CHIPError.h>
+#include <lib/support/CHIPFaultInjection.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/Span.h>
 
@@ -99,6 +100,34 @@ DataModel::ActionReturnStatus CodegenDataModelProvider::ReadAttribute(const Data
                   "Reading attribute: Cluster=" ChipLogFormatMEI " Endpoint=0x%x AttributeId=" ChipLogFormatMEI " (expanded=%d)",
                   ChipLogValueMEI(request.path.mClusterId), request.path.mEndpointId, ChipLogValueMEI(request.path.mAttributeId),
                   request.path.mExpanded);
+
+#if CHIP_WITH_NLFAULTINJECTION
+    {
+        nl::FaultInjection::Manager & mgr = chip::FaultInjection::GetManager();
+        const nl::FaultInjection::Record * record = &mgr.GetFaultRecords()[chip::FaultInjection::kFault_AttributeRead];
+
+        if (record->mNumArguments >= 3)
+        {
+            uint16_t targetEndpoint  = static_cast<uint16_t>(record->mArguments[0]);
+            uint32_t targetCluster   = static_cast<uint32_t>(record->mArguments[1]);
+            uint32_t targetAttribute = static_cast<uint32_t>(record->mArguments[2]);
+
+            if ((targetEndpoint == 0xFFFF || request.path.mEndpointId == targetEndpoint) &&
+                (targetCluster == 0xFFFFFFFF || request.path.mClusterId == targetCluster) &&
+                (targetAttribute == 0xFFFFFFFF || request.path.mAttributeId == targetAttribute))
+            {
+                CHIP_FAULT_INJECT(chip::FaultInjection::kFault_AttributeRead,
+                {
+                    ChipLogError(DataManagement,
+                                 "Fault injected: Read failed for EP:%u Cluster:" ChipLogFormatMEI " Attr:" ChipLogFormatMEI,
+                                 request.path.mEndpointId, ChipLogValueMEI(request.path.mClusterId),
+                                 ChipLogValueMEI(request.path.mAttributeId));
+                    return CHIP_IM_GLOBAL_STATUS(Failure);
+                });
+            }
+        }
+    }
+#endif // CHIP_WITH_NLFAULTINJECTION
 
     // Codegen logic specific: we accept AAI reads BEFORE server cluster interface, so that we are backwards compatible
     // in case some application installed AAI before Server Cluster Interfaces were supported

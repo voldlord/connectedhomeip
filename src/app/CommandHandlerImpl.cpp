@@ -482,9 +482,9 @@ Status CommandHandlerImpl::ProcessCommandDataIB(CommandDataIB::Parser & aCommand
         {
             CHIP_FAULT_INJECT(chip::FaultInjection::kFault_CommandInvoke,
             {
-                ChipLogError(DataManagement, "Fault injected: Command failed for EP:%u Cluster:0x%lx Cmd:0x%lx",
-                            concretePath.mEndpointId, static_cast<unsigned long>(concretePath.mClusterId), 
-                            static_cast<unsigned long>(concretePath.mCommandId));
+                ChipLogError(DataManagement, "Fault injected: Command failed for EP:%u Cluster:" ChipLogFormatMEI " Cmd:" ChipLogFormatMEI,
+                            concretePath.mEndpointId, ChipLogValueMEI(concretePath.mClusterId), 
+                            ChipLogValueMEI(concretePath.mCommandId));
                 err = CHIP_ERROR_INTERNAL;
             });
         }

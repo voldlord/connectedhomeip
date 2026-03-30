@@ -37,6 +37,7 @@
 #include <app/util/odd-sized-integers.h>
 #include <data-model-providers/codegen/EmberAttributeDataBuffer.h>
 #include <lib/core/CHIPError.h>
+#include <lib/support/CHIPFaultInjection.h>
 #include <lib/support/CodeUtils.h>
 
 #include <zap-generated/endpoint_config.h>
@@ -93,6 +94,34 @@ DataModel::ActionReturnStatus CodegenDataModelProvider::WriteAttribute(const Dat
 {
     // we must be started up to accept writes (we make use of the context below)
     VerifyOrReturnError(mContext.has_value(), CHIP_ERROR_INCORRECT_STATE);
+
+#if CHIP_WITH_NLFAULTINJECTION
+    {
+        nl::FaultInjection::Manager & mgr = chip::FaultInjection::GetManager();
+        const nl::FaultInjection::Record * record = &mgr.GetFaultRecords()[chip::FaultInjection::kFault_AttributeWrite];
+
+        if (record->mNumArguments >= 3)
+        {
+            uint16_t targetEndpoint  = static_cast<uint16_t>(record->mArguments[0]);
+            uint32_t targetCluster   = static_cast<uint32_t>(record->mArguments[1]);
+            uint32_t targetAttribute = static_cast<uint32_t>(record->mArguments[2]);
+
+            if ((targetEndpoint == 0xFFFF || request.path.mEndpointId == targetEndpoint) &&
+                (targetCluster == 0xFFFFFFFF || request.path.mClusterId == targetCluster) &&
+                (targetAttribute == 0xFFFFFFFF || request.path.mAttributeId == targetAttribute))
+            {
+                CHIP_FAULT_INJECT(chip::FaultInjection::kFault_AttributeWrite,
+                {
+                    ChipLogError(DataManagement,
+                                 "Fault injected: Write failed for EP:%u Cluster:" ChipLogFormatMEI " Attr:" ChipLogFormatMEI,
+                                 request.path.mEndpointId, ChipLogValueMEI(request.path.mClusterId),
+                                 ChipLogValueMEI(request.path.mAttributeId));
+                    return CHIP_IM_GLOBAL_STATUS(Failure);
+                });
+            }
+        }
+    }
+#endif // CHIP_WITH_NLFAULTINJECTION
 
     // Codegen logic specific: we accept AAI writes BEFORE server cluster interface, so that we are backwards compatible
     // in case some application installed AAI before Server Cluster Interfaces were supported
