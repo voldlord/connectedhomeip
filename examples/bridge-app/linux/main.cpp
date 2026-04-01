@@ -362,8 +362,6 @@ int RemoveDeviceEndpoint(Device * dev)
     {
         if (gDevices[index] == dev)
         {
-            // Todo: Update this to schedule the work rather than use this lock
-            DeviceLayer::StackLock lock;
             // Silence complaints about unused ep when progress logging
             // disabled.
             [[maybe_unused]] EndpointId ep = emberAfClearDynamicEndpoint(index);
