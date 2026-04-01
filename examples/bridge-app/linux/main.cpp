@@ -316,8 +316,6 @@ int AddDeviceEndpoint(Device * dev, EmberAfEndpointType * ep, const Span<const E
             CHIP_ERROR err;
             while (true)
             {
-                // Todo: Update this to schedule the work rather than use this lock
-                DeviceLayer::StackLock lock;
                 dev->SetEndpointId(gCurrentEndpointId);
                 dev->SetParentEndpointId(parentEndpointId);
 #if !CHIP_CONFIG_USE_ENDPOINT_UNIQUE_ID
